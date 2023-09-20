@@ -1,0 +1,200 @@
+%% Importing EBSD Data:
+
+%% Specify Crystal and Specimen Symmetries
+
+% crystal symmetry
+CS = {... 
+  'notIndexed',...
+  crystalSymmetry('m-3m', [4 4 4], 'mineral', 'Aluminium', 'color', [0.53 0.81 0.98])};
+
+% plotting convention
+setMTEXpref('xAxisDirection','east');
+setMTEXpref('zAxisDirection','outOfPlane');
+
+%% Specify File Names:
+
+% path to files
+pname = 'C:\Users\hp\Dropbox\Files for Jessy';
+
+% files to be imported
+fname = [pname '\0_slice_XZ_0.ctf'];
+
+%% Import the Data
+
+% create an EBSD variable containing the data
+ebsd = EBSD.load(fname,CS,'interface','ctf',...
+  'convertEuler2SpatialReferenceFrame');
+
+%% *Inverse Pole Figures: EBSD colourmaps and the corresponding inverse pole figures*
+%% 1 - Establishing orientations: 
+% Plotting convention
+
+setMTEXpref('xAxisDirection','north');
+setMTEXpref('zAxisDirection','outOfPlane');
+% Rotate the orientation data but not the spatial data
+
+rot=rotation('Euler', 0*degree, 90*degree, 0*degree); 
+% These angles tell how the sample is aligned with the machine                                                     % 
+                                                      
+ebsd=rotate(ebsd,rot,'keepXY'); 
+% 'keepXY' allows to rotate the data without changing the spatial data
+% Generally is assumed that RD||X, TD||Y and ND||Z 
+
+RD = vector3d.X;
+TD = vector3d.Y;
+ND = vector3d.Z;
+%% 2 - Plotting the complete EBSD map:
+
+plot(ebsd)
+%% 3 - Plotting the orientations aligned with each of the directions of the sample 
+% Extraction of the orientations:
+
+%ori = ebsd.orientations;
+ori = ebsd('Aluminium').orientations;
+% Plotting the orientations aligned with the rolling direction:
+
+IPF_map(ebsd, 'Aluminium', RD)
+% Plotting the orientations aligned with the transverse direction:
+
+IPF_map(ebsd, 'Aluminium', TD)
+% Plotting the orientations aligned with the normal direction:
+
+IPF_map(ebsd, 'Aluminium', ND)
+%% 4 - Marking a small are to analyse in the colourmap
+% Region to be marked:
+
+region = [80 100 50 120];
+% Rolling direction
+
+IPF_map(ebsd, 'Aluminium', RD)
+rectangle('position',region,'edgecolor','k','linewidth',1);
+% Transverse direction
+
+IPF_map(ebsd, 'Aluminium', TD)
+rectangle('position',region,'edgecolor','k','linewidth',1);
+% Normal direction
+
+IPF_map(ebsd, 'Aluminium', ND)
+rectangle('position',region,'edgecolor','k','linewidth',1);
+%% 5 - Plotting the selected area from the complete EBSD map
+% 5.1 - Plotting the EBSD data of the selected region
+
+ebsd_region = ebsd(inpolygon(ebsd,region));
+figure
+plot(ebsd_region)
+% 5.2 - Plotting the orientations of the selected region
+IPF_map(ebsd_region, 'Aluminium', RD)
+% Orientations aligned with the rolling direction:
+
+IPF_map(ebsd_region, 'Aluminium', TD)
+% Orientations aligned with the normal direction:
+
+IPF_map(ebsd_region, 'Aluminium', ND)
+%% 6 - Plotting the grains in the selected area 
+% Calculate a list of grains
+
+[grains_region, ebsd_region.grainId, ebsd_region.mis2mean] = calcGrains(ebsd_region, ...
+    'angle',10*degree); % 10*degree is a conversion radians-degrees
+% Plot the grains (RD)
+
+IPF_grains_map(grains_region, 'Aluminium', RD)
+% Plot the grains (TD)
+
+IPF_grains_map(grains_region, 'Aluminium', TD)
+% Plot the grains (ND)
+
+IPF_grains_map(grains_region, 'Aluminium', ND)
+%% 7 - Cleaning the data
+% Removing small grains - noise
+
+ebsd_region = clean_grains(ebsd_region, grains_region, 1);
+% Recalculation of the grains from the cleaned EBSD dataset
+
+[grains_region, ebsd_region.grainId, ebsd_region.mis2mean] = calcGrains(ebsd_region, ...
+    'angle',10*degree);
+% Plotting the cleaned grains (RD)
+
+IPF_grains_map(grains_region, 'Aluminium', RD)
+% Plotting the cleaned grains (TD)
+
+IPF_grains_map(grains_region, 'Aluminium', TD)
+% Plotting the cleaned grains (ND)
+
+IPF_grains_map(grains_region, 'Aluminium', ND)
+%% 8 - Smoothing the data
+% Smoothing the grain boundaries
+
+grains_region = smooth(grains_region,100);
+% Plotting the smoothed grains (RD)
+
+IPF_grains_map(grains_region, 'Aluminium', RD)
+% Plotting the smoothed grains (TD)
+
+IPF_grains_map(grains_region, 'Aluminium', TD)
+% Plotting the smoothed grains (ND)
+
+IPF_grains_map(grains_region, 'Aluminium', ND)
+%% 9 - Plotting the colourkey
+
+ipfKey = ipfColorKey(ebsd('Aluminium'));
+plot(ipfKey)
+%% 10 - Inverse Pole Figures
+% 10.1 - Contour plots of the crystal orientations, where x=RD, Y=TD and Z=ND
+
+plotIPDF(ori,[RD,TD,ND],'contourf')
+mtexColorbar
+% 10.2 - Scatted plots of the crystal orientations, where x=RD, Y=TD and Z=ND
+
+plotIPDF(ori,[RD,TD,ND], 'points', 10000)
+%% 
+% Plotting all data
+
+plotIPDF(ori,[RD,TD,ND], 'points', 'all')
+%% Orientation Distribution Function
+%% 1 - Computing optimal half width from the mean orientations of grains
+
+[grains, ebsd.grainId, ebsd.mis2mean] = calcGrains(ebsd,'angle',10*degree); % 10*degree is a conversion radians-degrees
+psi=calcKernel(grains('Aluminium').meanOrientation);
+%% 2 - Changing specimen symmetry in Euler space
+
+ori = ebsd('Aluminium').orientations;
+%ori.SS = specimenSymmetry('orthorhombic');
+ori.SS = specimenSymmetry('monoclinic');
+%% 3 - Calculating the ODF
+
+odf = calcDensity(ori,'kernel',psi); 
+%% 4 - Plotting the ODF
+
+plot(odf,'phi2',[0,15,30,45,60,75,90]*degree,'antipodal','linewidth',1,'colorbar','cs','ss','contourf',0:1:10,'colorRange',[0,10]);
+%% Pole Figures
+%% 1 - Calculation of the orientations to plot
+
+%[grains, ebsd.grainId, ebsd.mis2mean] = calcGrains(ebsd,'angle',10*degree); % 10*degree is a conversion radians-degrees
+mean_ori=grains('Aluminium').meanOrientation;
+cs=ebsd('Aluminium').CS;
+%mean_ori=calcKernel(grains('Aluminium').meanOrientation);
+orientations = calcDensity(mean_ori,'halfwidth',2*degree);
+%% 2 - Defining the pole figures to plot
+
+h1=Miller(0,0,1,cs); % (0,0,1) pole
+h2=Miller(1,1,0,cs); % (1,1,0) pole
+h3=Miller(1,1,1,cs); % (1,1,1) pole
+%% 3 - Plotting the Pole Figures: smoothed contourplots of stereographic projections
+
+figure
+plotPDF(odf,[h1, h2, h3],'projection','eangle','contourf','minmax', 'complete',fontsize=30);
+mtexColorbar
+%mtexColorbar ('equal','location','southOutSide','title','mrd');
+%mtexColorbar ('location','southOutSide','title','mrd');
+%% 4 - Plotting Pole Figures: contourplots of equal-angular stereographic projections
+
+plotPDF(orientations,[h1, h2, h3],'antipodal','projection','eangle','contourf','minmax');
+odf.isOutlier;
+odf.(condition)=[];
+plotPDF(odf,[h1, h2, h3],'antipodal','projection','eangle','contourf','minmax');
+mtexColorbar ('location','southOutSide','title','mrd');
+%% 5 - Plotting the Pole Figure: contourplots of equal-area projections
+
+%plotPDF(orientations,[h1, h2, h3],'antipodal', 'contourf', 'minmax'); 
+%mtexColorbar ('location','southOutSide','title','mrd');
+%%
