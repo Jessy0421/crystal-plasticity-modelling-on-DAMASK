@@ -1,0 +1,32 @@
+name: (test)Uniaxial_tension_from_ODF_1000_32
+
+tasks:
+  - name: generate_microstructure_seeds #This task generates the grid for a RVE, and the seeds for a Voronoi Tesselation
+    method: random
+    software: damask
+    base:      
+      grid_size: [32, 32, 32] 
+      num_grains: 500
+      size: [1,1,1] # Dimensions of the RVE
+      phase_label: Al
+     
+  - name: sample_texture
+    method: from_ODF_mat
+    software: mtex
+    base:
+      ODF_mat_path: /net/scratch2/y19520jy/data/copper_odf.mat
+      num_orientations: 500
+      crystal_symmetry: cubic
+      specimen_symmetry: monoclinic  
+   
+        
+  - name: generate_volume_element #This task links the tasks 1 and 2
+    method: random_voronoi_from_orientations #The orientations imported in task 2 are added to the RVE generated in task 1
+    software: damask
+    base:
+      homog_label: SX
+      scale_morphology: [1, 1, 1]
+      
+  - name: visualise_volume_element
+    method: VTK
+    software: damask
