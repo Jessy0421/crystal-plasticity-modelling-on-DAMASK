@@ -1,0 +1,50 @@
+## Individual orientation sensitivity on DAMASK
+## this notebook work directly on DAMASK
+## every command is inputed to DAMASK separately
+
+## 1. Prepare the simulated files
+##  (.geom)
+##  (.config)
+##  (.load)
+
+## the three files must be placed in the same path of workplace
+
+## 2. Generate loading task
+
+DAMASK_spectral  --geometry replace_the_file_name.geom --load tension.load 
+
+## Replace the file name of (.geom)
+
+DAMASK_spectral  --geometry replace_the_file_name.geom --load plane.load
+
+
+## 3. Visualize the results
+
+postResults replace_the_file_name.spectralOut \
+	--cr fp,f,p,orientation,grainrotation,texture \
+	--co shearrate_slip,shearrate_slip \
+	--separation x,y,z \
+	--increments --range 100 100 1  --split
+
+addStrainTensors -0 -v replace_the_file_name_inc100.txt
+
+addCauchy replace_the_file_name_inc100.txt
+
+addMises -e 'ln(V)' -s Cauchy replace_the_file_name_inc100.txt
+
+vtk_rectilinearGrid replace_the_file_name_inc100.txt
+
+vtk_addRectilinearGridData \
+ --data 'Mises(Cauchy)',1_p,'1_ln(V)',1_Cauchy,1_f,1_orientation,1_grainrotation,texture\
+ --vtk 'replace_the_file_name_inc100_pos(cell).vtr' \
+ replace_the_file_name_inc100.txt
+
+addDisplacement --nodal replace_the_file_name_inc100.txt
+
+vtk_addRectilinearGridData \
+ --data 'fluct(f).pos','avg(f).pos' \
+ --vtk 'replace_the_file_name_inc100_pos(cell).vtr' \
+ replace_the_file_name_inc100_nodal.txt
+
+
+
